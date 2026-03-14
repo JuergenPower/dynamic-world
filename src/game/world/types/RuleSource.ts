@@ -1,0 +1,1 @@
+export type RuleSource = 'player' | 'simulation';
