@@ -1,7 +1,7 @@
 import { Scene } from 'phaser';
 
 const CELL_SIZE = 24;
-const STEP_DELAY = 1000;
+const STEP_DELAY = 5000;
 const DEAD_CELL_COLOR = 0xd6b34b;
 const ALIVE_CELL_COLOR = 0x1eb045;
 
@@ -24,6 +24,8 @@ export class Game extends Scene
         this.gridGraphics = this.add.graphics();
 
         this.initializeWorld();
+
+        this.input.on('pointerdown', this.handlePointerDown, this);
 
         this.stepTimer = this.time.addEvent({
             delay: STEP_DELAY,
@@ -113,8 +115,28 @@ export class Game extends Scene
         }
     }
 
+    private handlePointerDown (pointer: Phaser.Input.Pointer)
+    {
+        const column = Math.floor(pointer.x / CELL_SIZE);
+        const row = Math.floor(pointer.y / CELL_SIZE);
+
+        if (
+            row < 0 ||
+            row >= this.gridHeight ||
+            column < 0 ||
+            column >= this.gridWidth
+        ) {
+            return;
+        }
+
+        this.currentWorldState[row][column] = 0;
+        this.nextWorldState[row][column] = 0;
+        this.renderWorld();
+    }
+
     private handleShutdown ()
     {
+        this.input.off('pointerdown', this.handlePointerDown, this);
         this.stepTimer?.remove(false);
     }
 }
