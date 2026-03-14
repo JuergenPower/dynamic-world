@@ -2,8 +2,15 @@ import { Scene } from 'phaser';
 
 const CELL_SIZE = 24;
 const STEP_DELAY = 5000;
-const DEAD_CELL_COLOR = 0xd6b34b;
-const ALIVE_CELL_COLOR = 0x1eb045;
+const DRY_SOIL_COLOR = 0xd6b34b;
+const MOIST_SOIL_COLOR = 0x7a6140;
+const GRASS_COLOR = 0x1eb045;
+
+const STATE_DRY = 0;
+const STATE_MOIST = 1;
+const STATE_GRASS = 2;
+
+const GRASS_GROWTH_CHANCE_PER_GRASS_NEIGHBOR = 0.025;
 
 export class Game extends Scene
 {
@@ -42,8 +49,8 @@ export class Game extends Scene
         this.gridWidth = 40;
         this.gridHeight = 30;
 
-        this.currentWorldState = this.createEmptyWorldState(); // Initial world state
-        this.currentWorldState[14][19] = 1; // Example: Set a single alive cell
+        this.currentWorldState = this.createEmptyWorldState();
+        this.currentWorldState[14][19] = STATE_GRASS;
         this.nextWorldState = this.createEmptyWorldState();
 
         this.renderWorld();
@@ -51,7 +58,7 @@ export class Game extends Scene
 
     private createEmptyWorldState ()
     {
-        return Array.from({ length: this.gridHeight }, () => Array(this.gridWidth).fill(0));
+        return Array.from({ length: this.gridHeight }, () => Array(this.gridWidth).fill(STATE_DRY));
     }
 
     private stepWorld ()
@@ -59,23 +66,25 @@ export class Game extends Scene
         for (let row = 0; row < this.gridHeight; row++) {
             for (let column = 0; column < this.gridWidth; column++) {
                 const currentCellState = this.currentWorldState[row][column];
-                if (currentCellState === 1) {
-                    this.nextWorldState[row][column] = 1; // Alive cells remain alive
+                
+
+                if (currentCellState === STATE_GRASS || currentCellState === STATE_DRY) {
+                    this.nextWorldState[row][column] = currentCellState;
                     continue;
                 }
-                // Dead cells have a chance to become alive based on the number of alive neighbors
-                const aliveNeighbors = this.countAliveNeighbors(row, column);
-                const reviveChance = 0.04 * aliveNeighbors;
-                this.nextWorldState[row][column] = reviveChance >= Math.random() ? 1 : 0;
+
+                const grassNeighbors = this.countGrassNeighbors(row, column);
+                const growthChance = GRASS_GROWTH_CHANCE_PER_GRASS_NEIGHBOR * grassNeighbors;
+                this.nextWorldState[row][column] = growthChance >= Math.random() ? STATE_GRASS : STATE_MOIST;
             }
         }
         [this.currentWorldState, this.nextWorldState] = [this.nextWorldState, this.currentWorldState];
         this.renderWorld();
     }
 
-    private countAliveNeighbors (row: number, column: number)
+    private countGrassNeighbors (row: number, column: number)
     {
-        let aliveNeighbors = 0;
+        let grassNeighbors = 0;
 
         for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
             for (let columnOffset = -1; columnOffset <= 1; columnOffset++) {
@@ -95,11 +104,13 @@ export class Game extends Scene
                     continue;
                 }
 
-                aliveNeighbors += this.currentWorldState[neighborRow][neighborColumn];
+                if (this.currentWorldState[neighborRow][neighborColumn] === STATE_GRASS) {
+                    grassNeighbors++;
+                }
             }
         }
 
-        return aliveNeighbors;
+        return grassNeighbors;
     }
 
     private renderWorld ()
@@ -108,7 +119,14 @@ export class Game extends Scene
 
         for (let row = 0; row < this.gridHeight; row++) {
             for (let column = 0; column < this.gridWidth; column++) {
-                const cellColor = this.currentWorldState[row][column] === 1 ? ALIVE_CELL_COLOR : DEAD_CELL_COLOR;
+                const cellState = this.currentWorldState[row][column];
+                let cellColor = DRY_SOIL_COLOR;
+
+                if (cellState === STATE_MOIST) {
+                    cellColor = MOIST_SOIL_COLOR;
+                } else if (cellState === STATE_GRASS) {
+                    cellColor = GRASS_COLOR;
+                }
                 this.gridGraphics.fillStyle(cellColor, 1);
                 this.gridGraphics.fillRect(column * CELL_SIZE, row * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1);
             }
@@ -129,9 +147,10 @@ export class Game extends Scene
             return;
         }
 
-        this.currentWorldState[row][column] = 0;
-        this.nextWorldState[row][column] = 0;
-        this.renderWorld();
+        if (this.currentWorldState[row][column] === STATE_DRY) {
+            this.currentWorldState[row][column] = STATE_MOIST;
+            this.renderWorld();
+        }
     }
 
     private handleShutdown ()
