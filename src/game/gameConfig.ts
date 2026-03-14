@@ -1,13 +1,17 @@
 import { Game as MainGame } from './scenes/Game';
-import { AUTO, Game } from 'phaser';
+import { AUTO, Game, Scale } from 'phaser';
 
 
 const config: Phaser.Types.Core.GameConfig = {
     type: AUTO,
-    width: 1024,
-    height: 768,
+    width: window.innerWidth,
+    height: window.innerHeight,
     parent: 'game-container',
-    backgroundColor: '#028af8',
+    backgroundColor: '#888888',
+    scale: {
+        mode: Scale.RESIZE,
+        autoCenter: Scale.CENTER_BOTH
+    },
     scene: [
         MainGame
     ]
