@@ -1,5 +1,8 @@
-export type WaterCellIntent = {
-    type: 'water-cell';
+import { CellState } from '../CellState';
+
+export type SetCellStateIntent = {
+    type: 'set-cell-state';
+    targetState: CellState;
 };
 
-export type CellIntent = WaterCellIntent;
+export type CellIntent = SetCellStateIntent;

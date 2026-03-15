@@ -45,13 +45,12 @@ export class WorldSimulation
             return false;
         }
 
-        const nextState = this.evaluateCell(row, column, 'player', intent);
-        if (nextState === this.currentWorldState[row][column]) {
+        if (this.currentWorldState[row][column] === intent.targetState) {
             return false;
         }
 
-        this.currentWorldState[row][column] = nextState;
-        this.nextWorldState[row][column] = nextState;
+        this.currentWorldState[row][column] = intent.targetState;
+        this.nextWorldState[row][column] = intent.targetState;
 
         return true;
     }
@@ -72,7 +71,7 @@ export class WorldSimulation
         return Array.from({ length: this.height }, () => Array(this.width).fill(CellState.Dry));
     }
 
-    private evaluateCell (row: number, column: number, source: RuleSource, intent?: CellIntent)
+    private evaluateCell (row: number, column: number, source: RuleSource)
     {
         const currentState = this.currentWorldState[row][column];
         const candidateRules = this.rulesIndex.get(this.createRuleIndexKey(source, currentState));
@@ -81,7 +80,7 @@ export class WorldSimulation
             return currentState;
         }
 
-        const context = this.createRuleContext(row, column, currentState, intent);
+        const context = this.createRuleContext(row, column, currentState);
 
         for (const rule of candidateRules) {
             if (!rule.condition(context)) {
@@ -97,7 +96,7 @@ export class WorldSimulation
         return currentState;
     }
 
-    private createRuleContext (row: number, column: number, currentState: CellState, intent?: CellIntent): RuleContext
+    private createRuleContext (row: number, column: number, currentState: CellState): RuleContext
     {
         let grassNeighbors: number | undefined;
 
@@ -105,7 +104,6 @@ export class WorldSimulation
             row,
             column,
             currentState,
-            intent,
             getNumberOfGrassNeighbors: () => {
                 if (grassNeighbors === undefined) {
                     grassNeighbors = this.countNeighborsOfState(row, column, CellState.Grass);
