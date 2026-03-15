@@ -3,6 +3,7 @@ import { ALL_CELL_STATES, CellState, getCellStateLabel } from '../world/CellStat
 import { WorldSimulation } from '../world/WorldSimulation';
 import { CellIntent } from '../world/types';
 import { CellContextMenu, CellContextMenuAction } from '../ui/CellContextMenu';
+import { WorldStepProgressBar } from '../ui/WorldStepProgressBar';
 
 const CELL_SIZE = 24;
 const STEP_DELAY = 5000;
@@ -16,6 +17,7 @@ export class Game extends Scene
     private gridGraphics!: Phaser.GameObjects.Graphics;
     private stepTimer?: Phaser.Time.TimerEvent;
     private cellContextMenu!: CellContextMenu;
+    private worldStepProgressBar!: WorldStepProgressBar;
     private suppressNextPointerDown = false;
 
     constructor ()
@@ -39,6 +41,7 @@ export class Game extends Scene
             callbackScope: this
         });
 
+        this.worldStepProgressBar = new WorldStepProgressBar(this, this.stepTimer);
     }
 
     private initializeWorld (): void
@@ -141,8 +144,14 @@ export class Game extends Scene
         this.cellContextMenu.open(pointerX, pointerY, this.getContextMenuActions(row, column));
     }
 
+    update (): void
+    {
+        this.worldStepProgressBar.update();
+    }
+
     private handleShutdown (): void
     {
+        this.worldStepProgressBar.destroy();
         this.cellContextMenu.destroy();
         this.input.off('pointerdown', this.handlePointerDown, this);
         this.stepTimer?.remove(false);
