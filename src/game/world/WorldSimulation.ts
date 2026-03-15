@@ -99,6 +99,7 @@ export class WorldSimulation
     private createRuleContext (row: number, column: number, currentState: CellState): RuleContext
     {
         let grassNeighbors: number | undefined;
+        let waterNeighbors: number | undefined;
 
         return {
             row,
@@ -106,20 +107,30 @@ export class WorldSimulation
             currentState,
             getNumberOfGrassNeighbors: () => {
                 if (grassNeighbors === undefined) {
-                    grassNeighbors = this.countNeighborsOfState(row, column, CellState.Grass);
+                    grassNeighbors = this.countNeighborsOfState(row, column, CellState.Grass, true);
                 }
                 return grassNeighbors;
+            },
+            getNumberOfWaterNeighbors: () => {
+                if (waterNeighbors === undefined) {
+                    waterNeighbors = this.countNeighborsOfState(row, column, CellState.Water, false);
+                }
+                return waterNeighbors;
             }
         };
     }
 
-    private countNeighborsOfState (row: number, column: number, state: CellState)
+    private countNeighborsOfState (row: number, column: number, state: CellState, includeDiagonals: boolean)
     {
         let matchingNeighbors = 0;
 
         for (let rowOffset = -1; rowOffset <= 1; rowOffset++) {
             for (let columnOffset = -1; columnOffset <= 1; columnOffset++) {
                 if (rowOffset === 0 && columnOffset === 0) {
+                    continue;
+                }
+
+                if (!includeDiagonals && rowOffset !== 0 && columnOffset !== 0) {
                     continue;
                 }
 

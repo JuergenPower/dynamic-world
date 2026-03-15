@@ -10,6 +10,8 @@ const STEP_DELAY = 5000;
 const DRY_SOIL_COLOR = 0xd6b34b;
 const MOIST_SOIL_COLOR = 0x7a6140;
 const GRASS_COLOR = 0x1eb045;
+const RIVERBED_COLOR  = 0xc4b482;
+const WATER_COLOR = 0x2f80ed;
 
 export class Game extends Scene
 {
@@ -69,6 +71,10 @@ export class Game extends Scene
                     cellColor = MOIST_SOIL_COLOR;
                 } else if (cellState === CellState.Grass) {
                     cellColor = GRASS_COLOR;
+                } else if (cellState === CellState.Riverbed) {
+                    cellColor = RIVERBED_COLOR;
+                } else if (cellState === CellState.Water) {
+                    cellColor = WATER_COLOR;
                 }
                 this.gridGraphics.fillStyle(cellColor, 1);
                 this.gridGraphics.fillRect(column * CELL_SIZE, row * CELL_SIZE, CELL_SIZE - 1, CELL_SIZE - 1);

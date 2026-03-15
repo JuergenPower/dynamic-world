@@ -5,4 +5,5 @@ export type RuleContext = {
     column: number;
     currentState: CellState;
     getNumberOfGrassNeighbors: () => number;
+    getNumberOfWaterNeighbors: () => number;
 };
