@@ -2,27 +2,20 @@ import { Scene } from 'phaser';
 import { ALL_CELL_STATES, CellState, getCellStateLabel } from '../world/CellState';
 import { WorldSimulation } from '../world/WorldSimulation';
 import { CellIntent } from '../world/types';
+import { CellContextMenu, CellContextMenuAction } from '../ui/CellContextMenu';
 
 const CELL_SIZE = 24;
 const STEP_DELAY = 5000;
 const DRY_SOIL_COLOR = 0xd6b34b;
 const MOIST_SOIL_COLOR = 0x7a6140;
 const GRASS_COLOR = 0x1eb045;
-const CONTEXT_MENU_BG_COLOR = 0x232323;
-const CONTEXT_MENU_BORDER_COLOR = 0x505050;
-
-type ContextMenuAction = {
-    label: string;
-    intent: CellIntent;
-};
 
 export class Game extends Scene
 {
     private world!: WorldSimulation;
     private gridGraphics!: Phaser.GameObjects.Graphics;
     private stepTimer?: Phaser.Time.TimerEvent;
-    private contextMenu?: Phaser.GameObjects.Container;
-    private contextMenuBounds?: Phaser.Geom.Rectangle;
+    private cellContextMenu!: CellContextMenu;
     private suppressNextPointerDown = false;
 
     constructor ()
@@ -33,12 +26,11 @@ export class Game extends Scene
     create ()
     {
         this.input.mouse?.disableContextMenu();
-
         this.gridGraphics = this.add.graphics();
-
+        this.cellContextMenu = new CellContextMenu(this);
         this.initializeWorld();
-
         this.input.on('pointerdown', this.handlePointerDown, this);
+        this.events.once('shutdown', this.handleShutdown, this);
 
         this.stepTimer = this.time.addEvent({
             delay: STEP_DELAY,
@@ -47,14 +39,11 @@ export class Game extends Scene
             callbackScope: this
         });
 
-        this.events.once('shutdown', this.handleShutdown, this);
     }
 
     private initializeWorld (): void
     {
         this.world = new WorldSimulation(40, 30);
-        this.world.setCellState(14, 19, CellState.Grass);
-
         this.renderWorld();
     }
 
@@ -88,26 +77,26 @@ export class Game extends Scene
     {
         if (this.suppressNextPointerDown) {
             this.suppressNextPointerDown = false;
-            return;
+            return; // Suppress pointer down event after selecting a context menu action
         }
 
         if (pointer.button !== 0) {
-            return;
+            return; // Only respond to left-clicks
         }
 
-        if (this.contextMenuBounds && this.contextMenuBounds.contains(pointer.x, pointer.y)) {
-            return;
+        if (this.cellContextMenu.containsPoint(pointer.x, pointer.y)) {
+            return; // Clicked inside the context menu, do nothing (handled by menu)
         }
 
-        if (this.contextMenuBounds && !this.contextMenuBounds.contains(pointer.x, pointer.y)) {
-            this.closeContextMenu();
+        if (this.cellContextMenu.isOpen) {
+            this.cellContextMenu.close();
             return;
         }
 
         const selectedCell = this.getCellAtPointer(pointer);
 
         if (!selectedCell) {
-            this.closeContextMenu();
+            this.cellContextMenu.close();
             return;
         }
 
@@ -126,76 +115,35 @@ export class Game extends Scene
         return { row, column };
     }
 
-    private getContextMenuActions (): ContextMenuAction[]
+    private getContextMenuActions (row: number, column: number): CellContextMenuAction[]
     {
         return ALL_CELL_STATES.map((state) => ({
             label: `Set to ${getCellStateLabel(state)}`,
-            intent: {
-                type: 'set-cell-state',
-                targetState: state
+            onSelect: () => {
+                const intent: CellIntent = {
+                    type: 'set-cell-state',
+                    targetState: state
+                };
+
+                const changed = this.world.applyIntent(row, column, intent);
+                if (changed) {
+                    this.renderWorld();
+                }
+
+                this.suppressNextPointerDown = true;
+                this.cellContextMenu.close();
             }
         }));
     }
 
     private openContextMenu (row: number, column: number, pointerX: number, pointerY: number): void
     {
-        this.closeContextMenu();
-
-        const actions = this.getContextMenuActions();
-        const menuWidth = 180;
-        const itemHeight = 28;
-        const padding = 6;
-        const menuHeight = padding * 2 + itemHeight * actions.length;
-
-        const menuX = Phaser.Math.Clamp(pointerX, 0, this.scale.width - menuWidth);
-        const menuY = Phaser.Math.Clamp(pointerY, 0, this.scale.height - menuHeight);
-
-        const background = this.add.rectangle(menuX, menuY, menuWidth, menuHeight, CONTEXT_MENU_BG_COLOR, 0.95)
-            .setOrigin(0)
-            .setStrokeStyle(1, CONTEXT_MENU_BORDER_COLOR);
-
-        const menuObjects: Phaser.GameObjects.GameObject[] = [background];
-
-        actions.forEach((action, index) => {
-            const itemY = menuY + padding + index * itemHeight;
-
-            const hitArea = this.add.rectangle(menuX + 1, itemY, menuWidth - 2, itemHeight, 0xffffff, 0.001)
-                .setOrigin(0)
-                .setInteractive({ useHandCursor: true });
-
-            const label = this.add.text(menuX + 10, itemY + 6, action.label, {
-                fontFamily: 'Arial',
-                fontSize: '14px',
-                color: '#ffffff'
-            });
-
-            hitArea.on('pointerdown', () => {
-                const changed = this.world.applyIntent(row, column, action.intent);
-                if (changed) {
-                    this.renderWorld();
-                }
-
-                this.suppressNextPointerDown = true;
-                this.closeContextMenu();
-            });
-
-            menuObjects.push(hitArea, label);
-        });
-
-        this.contextMenu = this.add.container(0, 0, menuObjects).setDepth(50);
-        this.contextMenuBounds = new Phaser.Geom.Rectangle(menuX, menuY, menuWidth, menuHeight);
-    }
-
-    private closeContextMenu (): void
-    {
-        this.contextMenu?.destroy(true);
-        this.contextMenu = undefined;
-        this.contextMenuBounds = undefined;
+        this.cellContextMenu.open(pointerX, pointerY, this.getContextMenuActions(row, column));
     }
 
     private handleShutdown (): void
     {
-        this.closeContextMenu();
+        this.cellContextMenu.destroy();
         this.input.off('pointerdown', this.handlePointerDown, this);
         this.stepTimer?.remove(false);
     }
