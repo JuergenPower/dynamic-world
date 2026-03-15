@@ -19,17 +19,17 @@ export class WorldSimulation
         this.rulesIndex = this.createRulesIndex(rules);
     }
 
-    public isWithinBounds (row: number, column: number)
+    public isWithinBounds (row: number, column: number): boolean
     {
         return row >= 0 && row < this.height && column >= 0 && column < this.width;
     }
 
-    public getCellState (row: number, column: number)
+    public getCellState (row: number, column: number): CellState
     {
         return this.currentWorldState[row][column];
     }
 
-    public setCellState (row: number, column: number, state: CellState)
+    public setCellState (row: number, column: number, state: CellState): void
     {
         if (!this.isWithinBounds(row, column)) {
             return;
@@ -39,7 +39,7 @@ export class WorldSimulation
         this.nextWorldState[row][column] = state;
     }
 
-    public applyIntent (row: number, column: number, intent: CellIntent)
+    public applyIntent (row: number, column: number, intent: CellIntent): boolean
     {
         if (!this.isWithinBounds(row, column)) {
             return false;
@@ -55,7 +55,7 @@ export class WorldSimulation
         return true;
     }
 
-    public step ()
+    public step (): void
     {
         for (let row = 0; row < this.height; row++) {
             for (let column = 0; column < this.width; column++) {
@@ -66,12 +66,12 @@ export class WorldSimulation
         [this.currentWorldState, this.nextWorldState] = [this.nextWorldState, this.currentWorldState];
     }
 
-    private createEmptyWorldState ()
+    private createEmptyWorldState (): CellState[][]
     {
         return Array.from({ length: this.height }, () => Array(this.width).fill(CellState.Dry));
     }
 
-    private evaluateCell (row: number, column: number, source: RuleSource)
+    private evaluateCell (row: number, column: number, source: RuleSource): CellState
     {
         const currentState = this.currentWorldState[row][column];
         const candidateRules = this.rulesIndex.get(this.createRuleIndexKey(source, currentState));
@@ -100,6 +100,7 @@ export class WorldSimulation
     {
         let grassNeighbors: number | undefined;
         let waterNeighbors: number | undefined;
+        const nearestDistanceCache = new Map<string, number | undefined>();
 
         return {
             row,
@@ -116,11 +117,65 @@ export class WorldSimulation
                     waterNeighbors = this.countNeighborsOfState(row, column, CellState.Water, false);
                 }
                 return waterNeighbors;
+            },
+            hasStateWithinDistance: (state: CellState, maxDistance: number) => {
+                return this.findNearestStateDistance(row, column, state, maxDistance, nearestDistanceCache) !== undefined;
+            },
+            getDistanceToNearestState: (state: CellState, maxDistance: number) => {
+                return this.findNearestStateDistance(row, column, state, maxDistance, nearestDistanceCache);
             }
         };
     }
 
-    private countNeighborsOfState (row: number, column: number, state: CellState, includeDiagonals: boolean)
+    private findNearestStateDistance (
+        originRow: number,
+        originColumn: number,
+        state: CellState,
+        maxDistance: number,
+        cache: Map<string, number | undefined>
+    ): number | undefined
+    {
+        const key = `${state}:${maxDistance}`;
+        if (cache.has(key)) {
+            return cache.get(key);
+        }
+
+        let nearestDistance: number | undefined;
+
+        for (let rowOffset = -maxDistance; rowOffset <= maxDistance; rowOffset++) {
+            for (let columnOffset = -maxDistance; columnOffset <= maxDistance; columnOffset++) {
+                if (rowOffset === 0 && columnOffset === 0) {
+                    continue;
+                }
+
+                const distance = Math.abs(rowOffset) + Math.abs(columnOffset);
+                if (distance > maxDistance) {
+                    continue;
+                }
+
+                const row = originRow + rowOffset;
+                const column = originColumn + columnOffset;
+
+                if (!this.isWithinBounds(row, column)) {
+                    continue;
+                }
+
+                if (this.currentWorldState[row][column] !== state) {
+                    continue;
+                }
+
+                if (nearestDistance === undefined || distance < nearestDistance) {
+                    nearestDistance = distance;
+                }
+            }
+        }
+
+        cache.set(key, nearestDistance);
+
+        return nearestDistance;
+    }
+
+    private countNeighborsOfState (row: number, column: number, state: CellState, includeDiagonals: boolean): number
     {
         let matchingNeighbors = 0;
 
@@ -150,7 +205,7 @@ export class WorldSimulation
         return matchingNeighbors;
     }
 
-    private createRulesIndex (rules: TransitionRule[])
+    private createRulesIndex (rules: TransitionRule[]): Map<string, TransitionRule[]>
     {
         const index = new Map<string, TransitionRule[]>();
 
@@ -165,7 +220,7 @@ export class WorldSimulation
         return index;
     }
 
-    private createRuleIndexKey (source: RuleSource, state: CellState)
+    private createRuleIndexKey (source: RuleSource, state: CellState): string
     {
         return `${source}:${state}`;
     }

@@ -6,7 +6,7 @@ import { CellContextMenu, CellContextMenuAction } from '../ui/CellContextMenu';
 import { WorldStepProgressBar } from '../ui/WorldStepProgressBar';
 
 const CELL_SIZE = 24;
-const STEP_DELAY = 5000;
+const STEP_DELAY = 500;
 const DRY_SOIL_COLOR = 0xd6b34b;
 const MOIST_SOIL_COLOR = 0x7a6140;
 const GRASS_COLOR = 0x1eb045;
@@ -27,7 +27,7 @@ export class Game extends Scene
         super('Game');
     }
 
-    create ()
+    create (): void
     {
         this.input.mouse?.disableContextMenu();
         this.gridGraphics = this.add.graphics();

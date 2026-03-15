@@ -15,7 +15,7 @@ export const ALL_CELL_STATES: CellState[] = [
     CellState.Water
 ];
 
-export const getCellStateLabel = (state: CellState) => {
+export const getCellStateLabel = (state: CellState): string => {
     if (state === CellState.Dry) {
         return 'Dry Soil';
     }
